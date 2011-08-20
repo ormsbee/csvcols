@@ -17,7 +17,7 @@ class TestDocument(TestCase):
                                    ("last_name", self.last_name),
                                    ("gender", self.gender)])
 
-    def test_accessors(self):
+    def test_col_accessors(self):
         """Test basic ordered access to names and columns."""
         doc = self.users_doc
 
@@ -33,6 +33,22 @@ class TestDocument(TestCase):
         assert_equal(doc.gender, doc["gender"])
 
         assert_equal(len(doc.last_name), 4)
+
+    
+    def test_row_accessors(self):
+        names_doc = Document([("First Name", self.first_name),
+                              ("last_name", self.last_name),
+                              ("class", Column(['1A', '1B', '1C', '1D']))])
+        first_row = names_doc.rows[0]
+        assert_equal(first_row["First Name"], "David")
+        assert_equal(first_row["First Name"], first_row[0])
+        assert_equal(first_row["last_name"], "Smith")
+        assert_equal(first_row["last_name"], first_row.last_name)
+        assert_equal(first_row["last_name"], first_row[1])
+        assert_equal(first_row.last_name, "Smith")
+        assert_equal(first_row["class"], "1A")
+        assert_equal(first_row["class"], first_row[2])
+
     
     @raises(TypeError)
     def test_illegal_index(self):
@@ -76,7 +92,7 @@ class TestDocument(TestCase):
         assert_equal(doc.rows[0].first_name, "David")
 
     def test_mapping(self):
-        caps_users = self.users_doc.map(string.upper)
+        caps_users = self.users_doc.map_all(string.upper)
         assert_equal(caps_users.first_name,
                      Column(["DAVID", "BRIAN", "SONYA", "ALEXIS"]))
         assert_equal(caps_users.last_name,
@@ -84,7 +100,46 @@ class TestDocument(TestCase):
         assert_equal(caps_users.gender,
                      Column(["MALE", "MALE", "FEMALE", "FEMALE"]))
         
+x = """
+import csvcols
+shipping_doc = csvcols.load("shipping_orders.csv")
 
+# Extract just the columns we care about, and rename some of them
+raw_users_doc = shipping_doc.select("email", 
+                                    ("BILLING_FIRST", "first_name"),
+                                    ("BILLING_LAST", "last_name"))
+# Transform the column data as necessary
+users_doc = raw_users_doc.map(
+                first_name=unicode.title,
+                last_name=unicode.title,
+                email=unicode.lower
+            )
+sorted_doc = users_doc.sort_rows("email", "last_name", "first_name")
+
+def _merge_if(row1, row2):
+    return row1.email == row2.email and \
+           row1.last_name == row2.last_name and \
+           row1.first_name[0] == row2.first_name[0]
+
+def _merge_how(row1, row2):
+    return row1 if len(row1.first_name) > len(row2.first_name) else row2
+
+merged_doc = sorted_doc.merge_rows(_merge_if, _merge_how)
+is_edu_user_col = merged_doc.email.map(
+                      lambda s: "Y" if s.endswith(".edu") else "N"
+                  )
+is_edu_user_col = Column("Y" if s.endswith(".edu") else "N"
+                         for s in merged_doc.email)
+
+final_doc = merged_doc + is_edu_user_col
+
+print cvscols.dumps(final_doc)
+print "Unique emails: %s" % sorted(final_doc.email.unique)
+
+# Make a new document based on raw_users, where the email column is 
+# replaced by a copy that's been transformed into lowercase.
+sorted_users = users.sort_rows_by("email", "last_name", "first_name")
+merged_users = sorted_users.merge_if(lambda r1, r2: "email")
 
 
 # Implementation priority order
@@ -104,3 +159,4 @@ class TestDocument(TestCase):
 # 
 #     assert_equal(len(cg.last_name), 4)
 # 
+"""
