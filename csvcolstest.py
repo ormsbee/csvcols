@@ -3,15 +3,15 @@ from unittest import TestCase
 
 from nose.tools import *
 
-from csvcols import Column, Document
+from csvcols import Column, Document, loads
 
 
 class TestDocument(TestCase):
 
     def setUp(self):
-        self.first_name = Column(["David", "Brian", "Sonya", "Alexis"])
-        self.last_name = Column(["Smith", "Lee", "Kim", "Doe"])
-        self.gender = Column(["Male", "Male", "Female", "Female"])
+        self.first_name = Column([u"David", u"Brian", u"Sonya", u"Alexis"])
+        self.last_name = Column([u"Smith", u"Lee", u"Kim", u"Doe"])
+        self.gender = Column([u"Male", u"Male", u"Female", u"Female"])
 
         self.users_doc = Document([("first_name", self.first_name),
                                    ("last_name", self.last_name),
@@ -91,7 +91,7 @@ class TestDocument(TestCase):
         doc = self.users_doc
         assert_equal(doc.rows[0].first_name, "David")
 
-    def test_mapping(self):
+    def test_map_all(self):
         caps_users = self.users_doc.map_all(string.upper)
         assert_equal(caps_users.first_name,
                      Column(["DAVID", "BRIAN", "SONYA", "ALEXIS"]))
@@ -99,3 +99,69 @@ class TestDocument(TestCase):
                      Column(["SMITH", "LEE", "KIM", "DOE"]))
         assert_equal(caps_users.gender,
                      Column(["MALE", "MALE", "FEMALE", "FEMALE"]))
+
+    def test_map(self):
+        mapped_doc = self.users_doc.map(
+                         first_name=unicode.upper,
+                         last_name=unicode.lower,
+                         gender=lambda g: g[0].upper(),
+                     )
+        assert_equal(mapped_doc.first_name,
+                     ["DAVID", "BRIAN", "SONYA", "ALEXIS"])
+        assert_equal(mapped_doc.last_name,
+                     ["smith", "lee", "kim", "doe"])
+        assert_equal(mapped_doc.gender,
+                     ["M", "M", "F", "F"])
+
+    def test_select(self):
+        names = self.users_doc.select("last_name", "first_name")
+        # Should be reordering
+        assert_equal(names[0], self.users_doc.last_name)
+        assert_equal(names[1], self.users_doc.first_name)
+
+
+INVOICE_CSV_TEXT = """email,BILLING_FIRST,BILLING_LAST
+dave@example.com,  Dave, ormsbee
+,,,
+rusty@example.com,Rusty,ormsbee
+jack@example.com,Jack,  ,
+clyde@example.com, clyde ,ormsbee,,,,,,,
+,,,
+"""
+
+class TestLoading(TestCase):
+
+    def test_skip_blank_lines(self):
+        no_blanks = loads(INVOICE_CSV_TEXT, skip_blank_lines=True)
+        assert_equal(no_blanks.num_rows, 4)
+
+        with_blanks = loads(INVOICE_CSV_TEXT, skip_blank_lines=False)
+        assert_equal(with_blanks.num_rows, 6)
+
+    def test_strip_spaces(self):
+        stripped = loads(INVOICE_CSV_TEXT, strip_spaces=True)
+        assert_equal(stripped.BILLING_FIRST,
+                     ["Dave", "Rusty", "Jack", "clyde"])
+        assert_equal(stripped.BILLING_LAST,
+                     ["ormsbee", "ormsbee", "", "ormsbee"])
+
+        not_stripped = loads(INVOICE_CSV_TEXT, strip_spaces=False)
+        assert_equal(not_stripped.BILLING_FIRST,
+                     ["  Dave", "Rusty", "Jack", " clyde "])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

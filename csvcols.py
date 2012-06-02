@@ -1,5 +1,6 @@
 import csv
 from collections import namedtuple, OrderedDict
+from cStringIO import StringIO
 from itertools import izip
 
 class Column(tuple):
@@ -20,16 +21,14 @@ class Column(tuple):
     this iteration, so we'll just do the simplest thing. Later on, we'd probably
     make Column an instance of an ABC.
     """
-    def __init__(self, *args):
-        super(Column, self).__init__(*args)
-        self._unique = None # For caching unique set of values, not often called
+    def __eq__(self, other):
+        """We're a little more forgiving than a tuple comparison -- we'll allow
+        comparisons to lists and other iterables by casting them to tuples."""
+        return super(Column, self).__eq__(tuple(other))
 
     @property
     def unique(self):
-        if self._unique == None:
-            self._unique = frozenset(self)
-        return self._unique
-
+        return frozenset(self)
 
 class Document(object):
     """A Document is a way to group Columns together and give them names.
@@ -40,15 +39,11 @@ class Document(object):
     sorted_cols
     sorted_rows
     merged_rows
-    map vs. map_all in Document
-    remove map from Column?
     select
     select_by
     sort_by
-    sort
-    
+    sort    
     """
-
     def __init__(self, name_col_pairs):
         """Return a new Document given either an iterable of (Unicode, Column)
         tuples, where the strings are column names; or an OrderedDict. Column 
@@ -57,7 +52,7 @@ class Document(object):
         We force expansion in case it's a generator, and force our names to be
         in unicode. This is intended for the case where it's invoked with 
         hard-coded names in code. Parsing code should always call this method
-        with unicode names instead of relying on this this method to do it.
+        with unicode names instead of relying on this method to do it.
         """
         name_col_pairs = [(unicode(name), col) for name, col in name_col_pairs]
         self._names_to_cols = OrderedDict(name_col_pairs)
@@ -106,9 +101,15 @@ class Document(object):
 
     @property
     def rows(self):
-        if self._cached_rows == None:
+        if self._cached_rows is None:
             self._cached_rows = tuple(self.iterrows())
         return self._cached_rows
+
+    @property
+    def num_rows(self):
+        """All Columns in this Document are the same length, and a Document
+        must have at least one Column, so we just return its length."""
+        return len(self[0])
 
     def iterrows(self):
         return (self.Row(*row_vals) for row_vals in izip(*self.columns))
@@ -127,6 +128,16 @@ class Document(object):
 
     def map_all(self, f):
         return Document((name, Column(map(f, col))) for name, col in self)
+
+    def select(self, *names):
+        def _new_name_col_pairs():
+            for name in names:
+                if isinstance(name, tuple):
+                    old_name, new_name = name
+                    yield (new_name, self[old_name])
+                else:
+                    yield (name, self[name])
+        return Document(_new_name_col_pairs())
 
     ############################## Constructors ################################
     @classmethod
@@ -176,9 +187,9 @@ class Document(object):
 
 
 def loads(csv_str, *args, **kwargs):
-    return load(StringIO(csv_input), *args, **kwargs)
+    return load(StringIO(csv_str), *args, **kwargs)
 
-def load(csv_input, strip_spaces=True, skip_blank_lines=True,
+def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
          encoding="utf-8", delimiter=",", force_unique_col_names=False):
     """Load CSV from a file or StringIO stream. If strip_spaces is True (it is
     by default), we will strip leading and trailing spaces from all entries. If
