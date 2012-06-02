@@ -119,6 +119,17 @@ class TestDocument(TestCase):
         assert_equal(names[0], self.users_doc.last_name)
         assert_equal(names[1], self.users_doc.first_name)
 
+        multiple_copies = self.users_doc.select(
+                              ("last_name", "last_1"),
+                              ("last_name", "last_2"),
+                              "last_name",
+                              ("first_name", "first")
+                          )
+        assert_equal(multiple_copies.last_1, self.users_doc.last_name)
+        assert_equal(multiple_copies.last_2, self.users_doc.last_name)
+        assert_equal(multiple_copies.last_name, self.users_doc.last_name)
+        assert_equal(multiple_copies.first, self.users_doc.first_name)
+
 
 INVOICE_CSV_TEXT = """email,BILLING_FIRST,BILLING_LAST
 dave@example.com,  Dave, ormsbee
