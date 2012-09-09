@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from nose.tools import *
 
-from csvcols import Column, Document, loads
+from csvcols import Column, Document, S, loads, dumps
 
 
 class TestDocument(TestCase):
@@ -138,6 +138,21 @@ class TestDocument(TestCase):
     # def test_sorted_rows(self):
     #     sorted_rows = self.users_doc.rows_sorted()
     #     sorted_by_lastname = self.users_doc
+
+    def test_select_2(self):
+        modified_users_doc = self.users_doc.select(
+            "gender",
+            S("last_name", rename="LAST NAME", transform=unicode.upper),
+            ("first_name", "1st Name"),
+            S("last_name", transform=unicode.lower),
+        )
+        assert_equal(modified_users_doc.names,
+                     ["gender", "LAST NAME", "1st Name", "last_name"])
+        assert_equal(modified_users_doc["LAST NAME"], 
+                     ["SMITH", "LEE", "KIM", "DOE"])
+        assert_equal(modified_users_doc["1st Name"], self.users_doc.first_name)
+        assert_equal(modified_users_doc.last_name,
+                     ["smith", "lee", "kim", "doe"])
 
 
 INVOICE_CSV_TEXT = """email,BILLING_FIRST,BILLING_LAST

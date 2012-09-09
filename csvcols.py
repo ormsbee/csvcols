@@ -1,3 +1,13 @@
+"""
+TOOD list:
+
+* dumps
+* Document.sort_rows
+* Document.merge_rows_on
+* Document.merge_rows_if
+* Document append Document or ("col_nae", col) tuple
+* deal with errors in transforms
+"""
 import csv
 from collections import namedtuple, OrderedDict
 from cStringIO import StringIO
@@ -35,12 +45,6 @@ class Document(object):
     A Column object is just data, it has no name or identifier.  This is a
     helpful abstraction because many times the same column data is referenced
     under many different names in slightly modified versions of a Document.
-
-    sorted_cols
-    sorted_rows
-    merged_rows
-    sort_by
-    sort    
     """
     def __init__(self, name_col_pairs):
         """Return a new Document given either an iterable of (Unicode, Column)
@@ -127,16 +131,6 @@ class Document(object):
     def map_all(self, f):
         return Document((name, Column(map(f, col))) for name, col in self)
 
-    def select(self, *names):
-        def _new_name_col_pairs():
-            for name in names:
-                if isinstance(name, tuple):
-                    old_name, new_name = name
-                    yield (new_name, self[old_name])
-                else:
-                    yield (name, self[name])
-        return Document(_new_name_col_pairs())
-
     def cols_sorted(self, cmp=None, key=None, reverse=False):
         return self.select(*sorted(self.names, cmp, key, reverse))
 
@@ -190,7 +184,46 @@ class Document(object):
     def __len__(self):
         return len(self._names_to_cols)
 
+    def select(self, *selector_objs):
+        # Make sure they're all Selector objects
+        selectors = [Selector.from_unknown(s) for s in selector_objs]
+        return Document(s(self) for s in selectors)
 
+
+class Selector(object):
+    def __init__(self, select, rename=None, transform=None):
+        self._select = select
+        self._rename = rename
+        self._transform = transform
+
+    def __call__(self, doc):
+        name = self._rename if self._rename is not None else self._select
+        if self._transform:
+            col = Column(self._transform(x) for x in doc[self._select])
+        else:
+            col = doc[self._select]
+        return (name, col)
+
+    @classmethod
+    def from_unknown(cls, obj):
+        if isinstance(obj, cls):
+            return obj
+        elif isinstance(obj, basestring):
+            return cls(obj)
+        elif isinstance(obj, tuple):
+            return cls(*obj)
+        else:
+            raise TypeError("Can't create Selector from {0}".format(cls))
+
+
+# Shorthand for export purposes. I know there's a better way to do this.
+S = Selector
+
+def dump(doc, stream):
+    pass
+
+def dumps(doc):
+    pass
 
 def loads(csv_str, *args, **kwargs):
     return load(StringIO(csv_str), *args, **kwargs)
