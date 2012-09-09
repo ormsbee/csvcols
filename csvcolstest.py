@@ -130,6 +130,15 @@ class TestDocument(TestCase):
         assert_equal(multiple_copies.last_name, self.users_doc.last_name)
         assert_equal(multiple_copies.first, self.users_doc.first_name)
 
+    def test_sorted_cols(self):
+        sorted_cols_doc = self.users_doc.cols_sorted()
+        assert_equals(sorted_cols_doc.names, 
+                      ["first_name", "gender", "last_name"])
+
+    # def test_sorted_rows(self):
+    #     sorted_rows = self.users_doc.rows_sorted()
+    #     sorted_by_lastname = self.users_doc
+
 
 INVOICE_CSV_TEXT = """email,BILLING_FIRST,BILLING_LAST
 dave@example.com,  Dave, ormsbee

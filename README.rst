@@ -66,11 +66,6 @@ The library in a nutshell::
     print cvscols.dumps(final_doc)
     print "Unique emails: %s" % sorted(final_doc.email.unique)
 
-    # Make a new document based on raw_users, where the email column is 
-    # replaced by a copy that's been transformed into lowercase.
-    sorted_users = users.sort_rows_by("email", "last_name", "first_name")
-    merged_users = sorted_users.merge_if(lambda r1, r2: "email")
-
 Recommendations
 ---------------
 For non-trivial work, try to break up your manipulations into stages, with each
@@ -87,7 +82,8 @@ mean that you have to use unicode strings for all your Columns. If making an
 intermediate column datetime makes your life easier, by all means do it. The 
 same goes for having a real None value rather than overloading blanks to 
 sometimes be an empty string and sometimes be a logical null. Remember that you
-can serialize Columns and Documents as JSON, so you can store more complicated data structures.
+can serialize Columns and Documents as JSON, so you can store more complicated
+data structures.
 
 It's often the case that you have to flatten things out at the end to present it
 back as a CSV to the user or to a legacy system. But while that data is in
@@ -100,6 +96,9 @@ route. There's nothing I can do to stop you, but down that path lies madness.
 Warnings
 --------
 No attempt has been made to make this library memory efficient or particularly 
-fast (there's some very simple caching for row values and to get unique vals).
-I didn't need it at this point, but it should be pretty feasible, since Column
-data tends to be highly redundant in real life.
+fast. I didn't need it at this point, but it should be pretty feasible, since
+Column data tends to be highly redundant in real life. I wrote a previous 
+incarnation of this library that actually had a lot of transform hashing and
+caching (the idea was to prevent full recalcuation of a series of transforms
+when only small parts of the document change), but it added more complexity
+than it was worth, given how seldom I had a need for it.

@@ -39,8 +39,6 @@ class Document(object):
     sorted_cols
     sorted_rows
     merged_rows
-    select
-    select_by
     sort_by
     sort    
     """
@@ -139,6 +137,13 @@ class Document(object):
                     yield (name, self[name])
         return Document(_new_name_col_pairs())
 
+    def cols_sorted(self, cmp=None, key=None, reverse=False):
+        return self.select(*sorted(self.names, cmp, key, reverse))
+
+#    def rows_sorted_by(self, *names, cmp=None, key=None, reverse=False):
+#        if not names:
+#            return Document.from_rows(self.names, sorted(self.rows))
+
     ############################## Constructors ################################
     @classmethod
     def from_rows(cls, names, rows):
@@ -184,6 +189,7 @@ class Document(object):
 
     def __len__(self):
         return len(self._names_to_cols)
+
 
 
 def loads(csv_str, *args, **kwargs):
