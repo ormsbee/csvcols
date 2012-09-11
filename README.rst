@@ -1,5 +1,5 @@
-csvcols: an immutable, column-oriented CSV manipulation library
-===============================================================
+csvcols
+=======
 
 This library takes a column-oriented approach towards CSV data. Everything is
 stored internally as Unicode, and everything is outwardly immutable. It has 
@@ -28,43 +28,36 @@ library.
 The library in a nutshell::
 
     import csvcols
-    shipping_doc = csvcols.load("shipping_orders.csv")
+    from csvcols import Column, S # S = shorthand for Selector
 
-    # Extract just the columns we care about, and rename some of them
-    raw_users_doc = shipping_doc.select("email", 
-                                        ("BILLING_FIRST", "first_name"),
-                                        ("BILLING_LAST", "last_name"))
+    # Read Document from file. If encoding is not specified, UTF-8 is assumed.
+    raw_shipping_doc = csvcols.load("shipping_orders.csv", encoding='latin-1')
 
-    # Title case the name columns, lowercase the email column. If you're using
-    # string functions, be careful that you use the unicode.xxx ones, and not
-    # str.xxx
-    users_doc = raw_users_doc.map(first_name=unicode.title,
-                                  last_name=unicode.title,
-                                  email=unicode.lower)
+    # Select a subset of the columns and make them into a new Document. While
+    # we're doing this, we can rename or transform Columns.
+    users_doc = raw_shipping_doc.select(
+        S("email", transform=unicode.lower),
+        S("BILLING_LAST", rename="last_name", transform=unicode.title),
+        S("BILLING_FIRST", rename="first_name"),
+        ("CUSTOM 1", "special_notes"), # We can use tuples for renames as well
+        "country" # Or simple strings if we don't want to do any transforms
+    )
 
-    # Sort rows by email, then last name, then first name
-    sorted_doc = users_doc.sort_rows("email", "last_name", "first_name")
+    # If the email, last name, and first initial match, merge the records 
+    # together, and keep the longer first name. By default, this sorts as well.
+    merged_doc = users_doc.merge_rows_on(
+        lambda row: (row.email, row.last_name, row.first_name[0]),
+        lambda r1, r2: r1 if len(r1.first_name) > len(r2.first_name) else r2
+    )
 
-    def _merge_if(row1, row2):
-        return row1.email == row2.email and \
-               row1.last_name == row2.last_name and \
-               row1.first_name[0] == row2.first_name[0]
-
-    def _merge_how(row1, row2):
-        return row1 if len(row1.first_name) > len(row2.first_name) else row2
-
-    # Merge duplicate rows, as defined by the above helper functions
-    merged_doc = sorted_doc.merge_rows(_merge_if, _merge_how)
-    
-    # Create a new column based on an existing one...
+    # Create a new Column based on existing data.
     is_edu_user_col = Column("Y" if s.endswith(".edu") else "N"
                              for s in merged_doc.email)
 
     # Append this new column to the doc (note: this creates a new doc)
-    final_doc = merged_doc + is_edu_user_col
+    final_doc = merged_doc + ("is_edu_user", is_edu_user_col)
 
     print cvscols.dumps(final_doc)
-    print "Unique emails: %s" % sorted(final_doc.email.unique)
 
 Recommendations
 ---------------
@@ -102,3 +95,17 @@ incarnation of this library that actually had a lot of transform hashing and
 caching (the idea was to prevent full recalcuation of a series of transforms
 when only small parts of the document change), but it added more complexity
 than it was worth, given how seldom I had a need for it.
+
+Reference
+---------
+.. automodule:: csvcols
+   :members:
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

@@ -1,5 +1,5 @@
 """
-TOOD list:
+TODO list:
 
 * dumps
 * Document.sort_rows
@@ -14,9 +14,9 @@ from cStringIO import StringIO
 from itertools import imap, izip
 
 class Column(tuple):
-    """An immutable list of elements that represent every element in a column of
-    the CSV file. It should provide for both iteration and random access (i.e.
-    implement the Sequence ABC).
+    """An immutable sequence of elements that represent every element in a 
+    column of the CSV file. It should provide for both iteration and random
+    access (i.e. implement the Sequence ABC).
 
     While it is possible to create a column with any data types in it, when the
     Column comes from a Document's parsing methods, it always contains Unicode
@@ -38,6 +38,7 @@ class Column(tuple):
 
     @property
     def unique(self):
+        """Return a frozenset of the unique elements in this Column."""
         return frozenset(self)
 
 class Document(object):
@@ -45,17 +46,32 @@ class Document(object):
     A Column object is just data, it has no name or identifier.  This is a
     helpful abstraction because many times the same column data is referenced
     under many different names in slightly modified versions of a Document.
+    Columns are immutable, so Documents share them, and creating a new Document
+    from existing Columns is cheap.
+
+    Creating a Document automatically creates a Row object for that Document.
+    The Row object is a subclass of `namedtuple` and is also accessible by 
+    row name. For example::
+
+        for row in my_doc.iterrows():
+            # Each row is an instance of the my_doc.Row class
+            print row.first_name   # access like a named tuple
+            print row["LAST NAME"] # access using column names
+            print row[3] # access with simple index
+
     """
     def __init__(self, name_col_pairs):
         """Return a new Document given either an iterable of (Unicode, Column)
-        tuples, where the strings are column names; or an OrderedDict. Column 
-        names must be unique. Column lengths must be the same.
+        tuples, where the strings are column names. Column names must be unique.
+        Column lengths must be the same. It is valid to have an empty Document,
+        where all columns have zero elements.
 
-        We force expansion in case it's a generator, and force our names to be
-        in unicode. This is intended for the case where it's invoked with 
-        hard-coded names in code. Parsing code should always call this method
-        with unicode names instead of relying on this method to do it.
+        A `TypeError` is raised if any of these requirements is not met.
         """
+        # We force expansion in case it's a generator, and force our names to be
+        # in unicode. This is intended for the case where it's invoked with 
+        # hard-coded names in code. Parsing code should always call this method
+        # with unicode names instead of relying on this method to do it.
         name_col_pairs = [(unicode(name), col) for name, col in name_col_pairs]
         self._names_to_cols = OrderedDict(name_col_pairs)
         if not self._names_to_cols:
@@ -95,14 +111,17 @@ class Document(object):
     ############################# Simple Accessors #############################
     @property
     def columns(self):
+        """An ordered list of the Column objects in this Document."""
         return self._names_to_cols.values()
 
     @property
     def names(self):
+        """An ordered list of the column names in this Document."""
         return self._names_to_cols.keys()
 
     @property
     def rows(self):
+
         if self._cached_rows is None:
             self._cached_rows = tuple(self.iterrows())
         return self._cached_rows
@@ -216,22 +235,12 @@ class Selector(object):
         else:
             raise TypeError("Can't create Selector from {0}".format(cls))
 
-
 # Shorthand for export purposes. I know there's a better way to do this.
 S = Selector
 
-def dump(doc, stream):
-    pass
-
-def dumps(doc):
-    pass
-
-def loads(csv_str, *args, **kwargs):
-    return load(StringIO(csv_str), *args, **kwargs)
-
 def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
          encoding="utf-8", delimiter=",", force_unique_col_names=False):
-    """Load CSV from a file or StringIO stream. If strip_spaces is True (it is
+    """Load CSV from a file or StringIO stream. If `strip_spaces` is True (it is
     by default), we will strip leading and trailing spaces from all entries. If
     skip_blank_lines is True, we ignore all lines for which there is no data in
     the row. Excel often does both of these when exporting to CSV, giving you 
@@ -285,4 +294,13 @@ def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
     cols = [Column(raw_col) for raw_col in raw_text_cols]
 
     return Document(zip(column_headers, cols))
+
+def loads(csv_str, *args, **kwargs):
+    return load(StringIO(csv_str), *args, **kwargs)
     
+def dump(doc, stream):
+    pass
+
+def dumps(doc):
+    pass
+
