@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>csvcols by ormsbee</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>csvcols</h1>
+        <p>Python library for manipulating CSV docs as columns</p>
+        <p class="view"><a href="https://github.com/ormsbee/csvcols">View the Project on GitHub <small>ormsbee/csvcols</small></a></p>
+        <ul>
+          <li><a href="https://github.com/ormsbee/csvcols/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/ormsbee/csvcols/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/ormsbee/csvcols">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <p>This library takes a column-oriented approach towards CSV data. Everything is
+stored internally as Unicode, and everything is outwardly immutable. It has 
+support for:</p>
+
+<ul>
+<li>Parsing CSV files, including some Excel exported quirks</li>
+<li>Selecting and renaming columns</li>
+<li>Transforming documents by column</li>
+<li>Re-sorting a document by columns or rows</li>
+<li>Creating new documents by appending old ones together</li>
+<li>Merging rows</li>
+</ul><p>CSV files are everywhere and every language has a library to read them row by
+row. But sometimes that's not the best way to look at it. You often want to 
+make manipulations, transform or make rule checks on certain columns. If you
+keep the row by row model, then you just end up trying to jam everything into a
+single pass over the data. Or maybe you suck up everything into a 2D data
+structure and edit it in several passes. But then you start having side-effects,
+and you're not sure what changed what. Then you want to add a new rule that
+requires data from an older pass through the data, and you start making
+temporary data structures to hold the values of special columns or rows. I've
+had the 800 lb gorilla version of this thrown on my lap. It's a maintenance
+nightmare, and my frustrations with the code base inspired the creation of this
+library.</p>
+
+<p>The library in a nutshell:</p>
+
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">csvcols</span>
+<span class="kn">from</span> <span class="nn">csvcols</span> <span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">S</span> <span class="c"># S = shorthand for Selector</span>
+
+<span class="c"># Read Document from file. If encoding is not specified, UTF-8 is assumed.</span>
+<span class="n">raw_shipping_doc</span> <span class="o">=</span> <span class="n">csvcols</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s">"shipping_orders.csv"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">'latin-1'</span><span class="p">)</span>
+
+<span class="c"># Select a subset of the columns and make them into a new Document. While</span>
+<span class="c"># we're doing this, we can rename or transform Columns.</span>
+<span class="n">users_doc</span> <span class="o">=</span> <span class="n">raw_shipping_doc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+    <span class="n">S</span><span class="p">(</span><span class="s">"email"</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="nb">unicode</span><span class="o">.</span><span class="n">lower</span><span class="p">),</span>
+    <span class="n">S</span><span class="p">(</span><span class="s">"BILLING_LAST"</span><span class="p">,</span> <span class="n">rename</span><span class="o">=</span><span class="s">"last_name"</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="nb">unicode</span><span class="o">.</span><span class="n">title</span><span class="p">),</span>
+    <span class="n">S</span><span class="p">(</span><span class="s">"BILLING_FIRST"</span><span class="p">,</span> <span class="n">rename</span><span class="o">=</span><span class="s">"first_name"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s">"CUSTOM 1"</span><span class="p">,</span> <span class="s">"special_notes"</span><span class="p">),</span> <span class="c"># We can use tuples for renames as well</span>
+    <span class="s">"country"</span> <span class="c"># Or simple strings if we don't want to do any transforms</span>
+<span class="p">)</span>
+
+<span class="c"># If the email, last name, and first initial match, merge the records </span>
+<span class="c"># together, and keep the longer first name. By default, this sorts as well.</span>
+<span class="n">merged_doc</span> <span class="o">=</span> <span class="n">users_doc</span><span class="o">.</span><span class="n">merge_rows_on</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">last_name</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">first_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+    <span class="k">lambda</span> <span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">:</span> <span class="n">r1</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">r1</span><span class="o">.</span><span class="n">first_name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">r2</span><span class="o">.</span><span class="n">first_name</span><span class="p">)</span> <span class="k">else</span> <span class="n">r2</span>
+<span class="p">)</span>
+
+<span class="c"># Create a new Column based on existing data.</span>
+<span class="n">is_edu_user_col</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="s">"Y"</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">".edu"</span><span class="p">)</span> <span class="k">else</span> <span class="s">"N"</span>
+                         <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">merged_doc</span><span class="o">.</span><span class="n">email</span><span class="p">)</span>
+
+<span class="c"># Append this new column to the doc (note: this creates a new doc)</span>
+<span class="n">final_doc</span> <span class="o">=</span> <span class="n">merged_doc</span> <span class="o">+</span> <span class="p">(</span><span class="s">"is_edu_user"</span><span class="p">,</span> <span class="n">is_edu_user_col</span><span class="p">)</span>
+
+<span class="k">print</span> <span class="n">cvscols</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">final_doc</span><span class="p">)</span>
+</pre></div>
+
+<h2>Recommendations</h2>
+
+<p>For non-trivial work, try to break up your manipulations into stages, with each
+stage represented as a Document. It makes it much easier to isolate where things
+went wrong and why. Also, you can use select() to break documents into logical 
+pieces. For instance, an orders invoice file might be broken up into "users",
+"contact_info", "items". It's much easier to follow if you have methods that 
+take a sub-document or just a few columns and operate on those, rather than 
+having every method take a massive document and spit one back. You can later 
+reconstruct the document by appending your pieces together. Just remember to 
+rebuild the document with all the columns you care about before sorting or 
+merging.</p>
+
+<p>Also, while csvcols will parse files into Columns of unicode data, it doesn't 
+mean that you have to use unicode strings for all your Columns. If making an 
+intermediate column datetime makes your life easier, by all means do it. The 
+same goes for having a real None value rather than overloading blanks to 
+sometimes be an empty string and sometimes be a logical null. Remember that you
+can serialize Columns and Documents as JSON, so you can store more complicated
+data structures.</p>
+
+<p>It's often the case that you have to flatten things out at the end to present it
+back as a CSV to the user or to a legacy system. But while that data is in
+transit between Excel and some legacy horror, you have a richer vocabulary and
+should use it. For instance, an error column might hold dictionaries that
+specify severity, type, etc. Just please, please, for the sake of your sanity, 
+don't start mutating the rich data structures inside the Column if you go this
+route. There's nothing I can do to stop you, but down that path lies madness.</p>
+
+<h2>Warnings</h2>
+
+<p>No attempt has been made to make this library memory efficient or particularly 
+fast. I didn't need it at this point, but it should be pretty feasible, since
+Column data tends to be highly redundant in real life. I wrote a previous 
+incarnation of this library that actually had a lot of transform hashing and
+caching (the idea was to prevent full recalcuation of a series of transforms
+when only small parts of the document change), but it added more complexity
+than it was worth, given how seldom I had a need for it.</p>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/ormsbee">ormsbee</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
