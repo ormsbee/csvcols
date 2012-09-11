@@ -11,7 +11,7 @@ TOOD list:
 import csv
 from collections import namedtuple, OrderedDict
 from cStringIO import StringIO
-from itertools import izip
+from itertools import imap, izip
 
 class Column(tuple):
     """An immutable list of elements that represent every element in a column of
@@ -116,6 +116,7 @@ class Document(object):
     def iterrows(self):
         return (self.Row(*row_vals) for row_vals in izip(*self.columns))
 
+    ################# Creating new Documents based on this one #################
     def map(self, **names_to_funcs):
         """Take keyword arguments
         
@@ -123,13 +124,18 @@ class Document(object):
         """
         def _mapped_col(name, col):
             if name in names_to_funcs:
-                return Column(map(names_to_funcs[name], col))
+                return Column(imap(names_to_funcs[name], col))
             return col
         
         return Document((name, _mapped_col(name, col)) for name, col in self)
 
     def map_all(self, f):
-        return Document((name, Column(map(f, col))) for name, col in self)
+        return Document((name, Column(imap(f, col))) for name, col in self)
+
+    def select(self, *selector_objs):
+        # Make sure they're all Selector objects
+        selectors = [Selector.from_unknown(obj) for obj in selector_objs]
+        return Document(s(self) for s in selectors)
 
     def cols_sorted(self, cmp=None, key=None, reverse=False):
         return self.select(*sorted(self.names, cmp, key, reverse))
@@ -183,11 +189,6 @@ class Document(object):
 
     def __len__(self):
         return len(self._names_to_cols)
-
-    def select(self, *selector_objs):
-        # Make sure they're all Selector objects
-        selectors = [Selector.from_unknown(s) for s in selector_objs]
-        return Document(s(self) for s in selectors)
 
 
 class Selector(object):
