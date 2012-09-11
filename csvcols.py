@@ -51,12 +51,13 @@ class Document(object):
 
     Creating a Document automatically creates a Row object for that Document.
     The Row object is a subclass of `namedtuple` and is also accessible by 
-    row name. For example::
+    string index like a dictionary, for those cases in which column names don't
+    cleanly map to a valid Python attribute name. For example::
 
         for row in my_doc.iterrows():
             # Each row is an instance of the my_doc.Row class
             print row.first_name   # access like a named tuple
-            print row["LAST NAME"] # access using column names
+            print row["-LAST NAME-"] # access using column names
             print row[3] # access with simple index
 
     """
