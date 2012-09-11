@@ -362,6 +362,7 @@ def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
     return Document(zip(column_headers, cols))
 
 def loads(csv_str, *args, **kwargs):
+    """Like :func:`load`, but takes a String object instead of a stream."""
     return load(StringIO(csv_str), *args, **kwargs)
     
 def dump(doc, stream):
