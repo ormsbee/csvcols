@@ -7,10 +7,10 @@ support for:
 
 * Parsing CSV files, including some Excel exported quirks
 * Selecting and renaming columns
-* Merging rows
+* Transforming documents by column
 * Re-sorting a document by columns or rows
 * Creating new documents by appending old ones together
-* Transforming (map, map_all) documents by column
+* Merging rows
 
 CSV files are everywhere and every language has a library to read them row by
 row. But sometimes that's not the best way to look at it. You often want to 
@@ -63,12 +63,14 @@ Recommendations
 ---------------
 For non-trivial work, try to break up your manipulations into stages, with each
 stage represented as a Document. It makes it much easier to isolate where things
-went wrong and why. Also, you can use select() to break documents into logical pieces. For instance, an orders invoice file might be broken up into "users",
+went wrong and why. Also, you can use select() to break documents into logical 
+pieces. For instance, an orders invoice file might be broken up into "users",
 "contact_info", "items". It's much easier to follow if you have methods that 
 take a sub-document or just a few columns and operate on those, rather than 
 having every method take a massive document and spit one back. You can later 
 reconstruct the document by appending your pieces together. Just remember to 
-rebuild the document with all the columns you care about before sorting.
+rebuild the document with all the columns you care about before sorting or 
+merging.
 
 Also, while csvcols will parse files into Columns of unicode data, it doesn't 
 mean that you have to use unicode strings for all your Columns. If making an 

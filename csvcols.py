@@ -54,20 +54,23 @@ class Document(object):
     string index like a dictionary, for those cases in which column names don't
     cleanly map to a valid Python attribute name. For example::
 
+        my_doc = Document([("first_name", first_name_col),
+                           ("-LAST NAME-", last_name_col),
+                           ("email", email_col)])
         for row in my_doc.iterrows():
             # Each row is an instance of the my_doc.Row class
             print row.first_name   # access like a named tuple
             print row["-LAST NAME-"] # access using column names
-            print row[3] # access with simple index
+            print row[2] # access with simple index
 
     """
     def __init__(self, name_col_pairs):
-        """Return a new Document given either an iterable of (Unicode, Column)
-        tuples, where the strings are column names. Column names must be unique.
-        Column lengths must be the same. It is valid to have an empty Document,
-        where all columns have zero elements.
+        """`name_col_pairs` must be an iterable of (Unicode, Column) tuples, 
+        where the strings are column names. Column names must be unique. Column
+        lengths must be the same. It is valid to have an empty Document, where
+        all columns have zero elements.
 
-        A `TypeError` is raised if any of these requirements is not met.
+        A :exc:`TypeError` is raised if any of these requirements is not met.
         """
         # We force expansion in case it's a generator, and force our names to be
         # in unicode. This is intended for the case where it's invoked with 
@@ -122,7 +125,7 @@ class Document(object):
 
     @property
     def rows(self):
-
+        """Return the entire Document as a tuple of `self.Row` objects."""
         if self._cached_rows is None:
             self._cached_rows = tuple(self.iterrows())
         return self._cached_rows
@@ -134,13 +137,26 @@ class Document(object):
         return len(self[0])
 
     def iterrows(self):
+        """Iterate through the Document row by row. Returns a generator of 
+        `self.Row` objects, which can be treated as a namedtuple or accessed
+        by column name like a dictionary::
+
+            for row in my_doc.iterrows():
+                # Each row is an instance of the my_doc.Row class
+                print row.first_name   # access like a named tuple
+                print row["-LAST NAME-"] # access using column names
+                print row[3] # access with simple index
+        """
         return (self.Row(*row_vals) for row_vals in izip(*self.columns))
 
     ################# Creating new Documents based on this one #################
     def map(self, **names_to_funcs):
-        """Take keyword arguments
+        """Return a Document where the column names in `names_to_funcs` have
+        been transformed by applying the corresponding functions in
+        `names_to_funcs`. The appropriate function will be applied to every
+        element of the corresponding Column. Example::
         
-        user_info.map(name=unicode.title, email=unicode.lower)        
+            lower_cased_doc = user_doc.map(name=unicode.lower, email=unicode.lower)
         """
         def _mapped_col(name, col):
             if name in names_to_funcs:
@@ -150,14 +166,41 @@ class Document(object):
         return Document((name, _mapped_col(name, col)) for name, col in self)
 
     def map_all(self, f):
+        """Return a new Document that has the same column names as this
+        Document, but who's Columns have been transformed by applying `f` to
+        each element of each Column. Example::
+
+            lower_cased_doc = user_doc.map_all(unicode.lower)
+        """
         return Document((name, Column(imap(f, col))) for name, col in self)
 
     def select(self, *selector_objs):
+        """Create a new Document by selecting and optionally transforming 
+        Columns from this one. `selector_objs` can be an iterable of 
+        :class:`Selector`, but it can also have strings or tuples. A string
+        will be interpreted as a :class:`Selector` with only the column name
+        specified. Tuples will be sent as constructor arguments to 
+        :class:`Selector`.
+
+        So for example, all of these will work::
+
+            users_doc = raw_shipping_doc.select(
+                S("email", transform=unicode.lower),
+                S("BILLING_LAST", rename="last_name", transform=unicode.title),
+                S("BILLING_FIRST", rename="first_name"),
+                ("CUSTOM 1", "special_notes"), # This will cause a rename
+                "country" # This just selects this column
+            )
+
+        """
         # Make sure they're all Selector objects
         selectors = [Selector.from_unknown(obj) for obj in selector_objs]
         return Document(s(self) for s in selectors)
 
     def cols_sorted(self, cmp=None, key=None, reverse=False):
+        """Return a Document that is the same as this one, except where the
+        columns are sorted by name. It takes the same keyword args as the
+        `sorted` built in, so you can customize how things are compared."""
         return self.select(*sorted(self.names, cmp, key, reverse))
 
 #    def rows_sorted_by(self, *names, cmp=None, key=None, reverse=False):
@@ -167,6 +210,9 @@ class Document(object):
     ############################## Constructors ################################
     @classmethod
     def from_rows(cls, names, rows):
+        """Convenience method to create a Document by specifying a list of 
+        column names (`names`) and an iterable of `rows` (where each row is also
+        an iterable)."""
         # Force it to a list so that we can tell if it's empty (generators will
         # return true even if they're empty).
         rows = list(rows)
@@ -212,12 +258,31 @@ class Document(object):
 
 
 class Selector(object):
+    """A Selector object (aliased to `S` for convenience) describes a column
+    that we want to extract and optionally rename or transform the contents of.
+    """
     def __init__(self, select, rename=None, transform=None):
+        """`select` is the name of the column we want to extract from a 
+        Document.
+
+        `rename` is the new name we're going to give it.
+
+        `transform` is a function to apply to each element in the extracted 
+        Column.
+
+        Mostly, you'll just want to use this when you're building arguments for
+        :func:`Document.select`, but you can also use it by itself like::
+
+            email_selector = Selector("email")
+            col_name, col = email_selector(user_doc)
+        """
         self._select = select
         self._rename = rename
         self._transform = transform
 
     def __call__(self, doc):
+        """Apply this Selector to a given Document. Returns a `(name, Column)`
+        pair."""
         name = self._rename if self._rename is not None else self._select
         if self._transform:
             col = Column(self._transform(x) for x in doc[self._select])
