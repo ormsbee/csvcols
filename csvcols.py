@@ -14,20 +14,20 @@ from cStringIO import StringIO
 from itertools import imap, izip
 
 class Column(tuple):
-    """An immutable sequence of elements that represent every element in a 
+    """An immutable sequence of elements that represent every element in a
     column of the CSV file. It should provide for both iteration and random
     access (i.e. implement the Sequence ABC).
 
     While it is possible to create a column with any data types in it, when the
     Column comes from a Document's parsing methods, it always contains Unicode
     strings.
-    
+
     The implementation is intentionally kept very simple here (leaning almost
-    entirely on tuple). There are many fun possilibites for more memory 
-    efficient structures. Many columns tend to have data that is extremely 
-    bursty (many blanks followed by many of the same value) or have a very 
-    small set of possible values ("M/F", "Y/N", etc.), lending themselves well 
-    to bitarray or RLE encodings. But memory efficiency isn't a major goal for 
+    entirely on tuple). There are many fun possilibites for more memory
+    efficient structures. Many columns tend to have data that is extremely
+    bursty (many blanks followed by many of the same value) or have a very
+    small set of possible values ("M/F", "Y/N", etc.), lending themselves well
+    to bitarray or RLE encodings. But memory efficiency isn't a major goal for
     this iteration, so we'll just do the simplest thing. Later on, we'd probably
     make Column an instance of an ABC.
     """
@@ -49,8 +49,8 @@ class Document(object):
     Columns are immutable, so Documents share them, and creating a new Document
     from existing Columns is cheap.
 
-    Creating a Document automatically creates a Row object for that Document.
-    The Row object is a subclass of `namedtuple` and is also accessible by 
+    Creating a Document automatically creates a Row class for that Document.
+    The Row class is a subclass of `namedtuple` and is also accessible by
     string index like a dictionary, for those cases in which column names don't
     cleanly map to a valid Python attribute name. For example::
 
@@ -65,7 +65,7 @@ class Document(object):
 
     """
     def __init__(self, name_col_pairs):
-        """`name_col_pairs` must be an iterable of (Unicode, Column) tuples, 
+        """`name_col_pairs` must be an iterable of (Unicode, Column) tuples,
         where the strings are column names. Column names must be unique. Column
         lengths must be the same. It is valid to have an empty Document, where
         all columns have zero elements.
@@ -73,7 +73,7 @@ class Document(object):
         A :exc:`TypeError` is raised if any of these requirements is not met.
         """
         # We force expansion in case it's a generator, and force our names to be
-        # in unicode. This is intended for the case where it's invoked with 
+        # in unicode. This is intended for the case where it's invoked with
         # hard-coded names in code. Parsing code should always call this method
         # with unicode names instead of relying on this method to do it.
         name_col_pairs = [(unicode(name), col) for name, col in name_col_pairs]
@@ -90,10 +90,10 @@ class Document(object):
             raise TypeError("Document's Columns must have the same length: " \
                             "%s" % zip(self.names, column_lengths))
 
-        # We create a custom Row object for every Document, that you can use 
+        # We create a custom Row object for every Document, that you can use
         # either as a tuple or an ordered dict. Accessible via rows or iterrows()
         self.Row = self._create_row_class()
-        
+
         # Caching
         self._cached_rows = None
 
@@ -137,7 +137,7 @@ class Document(object):
         return len(self[0])
 
     def iterrows(self):
-        """Iterate through the Document row by row. Returns a generator of 
+        """Iterate through the Document row by row. Returns a generator of
         `self.Row` objects, which can be treated as a namedtuple or accessed
         by column name like a dictionary::
 
@@ -155,14 +155,14 @@ class Document(object):
         been transformed by applying the corresponding functions in
         `names_to_funcs`. The appropriate function will be applied to every
         element of the corresponding Column. Example::
-        
+
             lower_cased_doc = user_doc.map(name=unicode.lower, email=unicode.lower)
         """
         def _mapped_col(name, col):
             if name in names_to_funcs:
                 return Column(imap(names_to_funcs[name], col))
             return col
-        
+
         return Document((name, _mapped_col(name, col)) for name, col in self)
 
     def map_all(self, f):
@@ -175,11 +175,11 @@ class Document(object):
         return Document((name, Column(imap(f, col))) for name, col in self)
 
     def select(self, *selector_objs):
-        """Create a new Document by selecting and optionally transforming 
-        Columns from this one. `selector_objs` can be an iterable of 
+        """Create a new Document by selecting and optionally transforming
+        Columns from this one. `selector_objs` can be an iterable of
         :class:`Selector`, but it can also have strings or tuples. A string
         will be interpreted as a :class:`Selector` with only the column name
-        specified. Tuples will be sent as constructor arguments to 
+        specified. Tuples will be sent as constructor arguments to
         :class:`Selector`.
 
         So for example, all of these will work::
@@ -210,7 +210,7 @@ class Document(object):
     ############################## Constructors ################################
     @classmethod
     def from_rows(cls, names, rows):
-        """Convenience method to create a Document by specifying a list of 
+        """Convenience method to create a Document by specifying a list of
         column names (`names`) and an iterable of `rows` (where each row is also
         an iterable)."""
         # Force it to a list so that we can tell if it's empty (generators will
@@ -224,7 +224,7 @@ class Document(object):
 
     ################################ Built-ins #################################
     def __add__(self, other):
-        return Document(zip(self.names + other.names, 
+        return Document(zip(self.names + other.names,
                             self.columns + other.columns))
 
     def __contains__(self, name_or_col):
@@ -262,12 +262,12 @@ class Selector(object):
     that we want to extract and optionally rename or transform the contents of.
     """
     def __init__(self, select, rename=None, transform=None):
-        """`select` is the name of the column we want to extract from a 
+        """`select` is the name of the column we want to extract from a
         Document.
 
         `rename` is the new name we're going to give it.
 
-        `transform` is a function to apply to each element in the extracted 
+        `transform` is a function to apply to each element in the extracted
         Column.
 
         Mostly, you'll just want to use this when you're building arguments for
@@ -309,9 +309,9 @@ def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
     """Load CSV from a file or StringIO stream. If `strip_spaces` is True (it is
     by default), we will strip leading and trailing spaces from all entries. If
     skip_blank_lines is True, we ignore all lines for which there is no data in
-    the row. Excel often does both of these when exporting to CSV, giving you 
+    the row. Excel often does both of these when exporting to CSV, giving you
     rows upon rows of output that looks like ",,,,,,,".
-    
+
     The encoding is utf-8 by default. Another really common encoding for older
     systems is latin-1
     """
@@ -364,7 +364,7 @@ def load(csv_stream, strip_spaces=True, skip_blank_lines=True,
 def loads(csv_str, *args, **kwargs):
     """Like :func:`load`, but takes a String object instead of a stream."""
     return load(StringIO(csv_str), *args, **kwargs)
-    
+
 def dump(doc, stream):
     pass
 
